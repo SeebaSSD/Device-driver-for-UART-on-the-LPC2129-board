@@ -1,73 +1,160 @@
-/*
- * This is the header file containing the driver function declarations for
- * LPC2129's UART written by Seeba Doddmani
- */
- 
-#ifndef SEEBA_UART_H
-#define SEEBA_UART_H
+
+#include "seeba_uart.h"
+// #include "lpc2129_regacc.h"
+#include "mock_lpc2129_regacc.h"
 
 /**
  * @brief Configures the baud rate of the UART
- *
- * @param baud : the baud rate of the UART data to be transmitted
- * valid values: 50 ...128000
- * @param clock: the input clock frequency in MHz is from the crystal clock. 
- * valid values: 1.8432MHz, 3.072MHz, 18.432MHz
- *
- * @return none
  */
- 
-void configure_baudrate (unsigned int baud, float clock);
+void configure_baudrate(unsigned int baud, float clock)
+{
+    unsigned int divisor;
+    unsigned char dll_val;
+    unsigned char dlm_val;
+    float clk_hz;
+
+    /* convert MHz to Hz */
+    clk_hz = clock * 1000000;
+
+    /* calculate divisor */
+    divisor = (unsigned int)(clk_hz / (baud * 16));
+
+    dll_val = divisor & 0xFF;
+    dlm_val = (divisor >> 8) & 0xFF;
+
+    /* enable DLAB */
+    U0LCR |= (1 << 7);
+
+    /* write divisor registers */
+    U0DLL = dll_val;
+    U0DLM = dlm_val;
+
+    /* disable DLAB */
+    U0LCR &= ~(1 << 7);
+}
 
 /**
- * @brief Configures the width (number of data bits) per UART frame
- *
- * @param data_bits : The number of data bits in the UART frame
- * valid values: 5, 6, 7, 8
- *
- * @return none
+ * @brief Configures UART data width
  */
-void configure_data_width (unsigned int data_bits);
+void configure_data_width(unsigned int data_bits)
+{
+    unsigned char val = 0;
+
+    /* clear bits 0 and 1 */
+    U0LCR &= ~(0x03);
+
+    switch(data_bits)
+    {
+        case 5:
+            val = 0x00;
+            break;
+
+        case 6:
+            val = 0x01;
+            break;
+
+        case 7:
+            val = 0x02;
+            break;
+
+        case 8:
+            val = 0x03;
+            break;
+
+        default:
+            val = 0x03;
+            break;
+    }
+
+    U0LCR |= val;
+}
 
 /**
- * @brief Configures the number of stop bits in UART 
- *
- * @param stop_bits : the number of stop bits to be transmitted
- * valid values: 1, 1.5, 2
- *
- * @return none
+ * @brief Configures stop bits
  */
-void configure_stop_bit (float stop_bits);
+void configure_stop_bit(float stop_bits)
+{
+    if(stop_bits == 2)
+    {
+        U0LCR |= (1 << 2);
+    }
+    else
+    {
+        /* default = 1 stop bit */
+        U0LCR &= ~(1 << 2);
+    }
+}
 
 /**
- * @brief Configures the parity mode of UART 
- *
- * @param parity : the parity type to be used
- * valid values: 0 = None, 1 = Odd, 2 = Even
- *
- * @return none
+ * @brief Configures parity
  */
-void configure_parity(unsigned int parity);
+void configure_parity(unsigned int parity)
+{
+    /* clear parity bits (3 and 4) */
+    U0LCR &= ~(0x18);
+
+    switch(parity)
+    {
+        case 1: /* odd parity */
+            U0LCR |= (1 << 3);
+            break;
+
+        case 2: /* even parity */
+            U0LCR |= (1 << 3);
+            U0LCR |= (1 << 4);
+            break;
+
+        case 0: /* no parity */
+        default:
+            break;
+    }
+}
 
 /**
- * @brief Transmits a single byte of data over UART
- *
- * @param data : the byte to be transmitted
- * valid values: 0x00 to 0xFF
- *
- * @return : 0 for success
- *	    1 for failure
+ * @brief Transmits a single byte of data
  */
- 
-int transmit_data(unsigned char data);
+int transmit_data(unsigned char data)
+{
+    int timeout = 100000;
+
+    /* wait until THR empty (LSR bit 5) */
+    while(!(U0LSR & (1 << 5)))
+    {
+        timeout--;
+
+        if(timeout == 0)
+        {
+            return 1;
+        }
+    }
+
+    /* write data to THR */
+    U0THR = data;
+
+    return 0;
+}
 
 /**
-* @brief receive data of the UART
-* @param data : one byte of data to be received
-* @return : 0 for success
-*	    1 for failure
-*
-*/
-int receive_data(unsigned char *data);
+ * @brief Receives a single byte of data
+ */
+int receive_data(unsigned char *data)
+{
+    int timeout = 100000;
 
-#endif
+    /* wait until data ready (LSR bit 0) */
+    while(!(U0LSR & (1 << 0)))
+    {
+        timeout--;
+
+        if(timeout == 0)
+        {
+            return 1;
+        }
+    }
+
+    /* read received byte */
+    *data = U0RBR;
+
+    return 0;
+}
+
