@@ -1,10 +1,8 @@
-
 #include "seeba_uart.h"
-// #include "lpc2129_regacc.h"
-#include "mock_lpc2129_regacc.h"
+#include "lpc2129_regacc.h"
 
 /**
- * @brief Configures the baud rate of the UART
+ * Configure UART baudrate
  */
 void configure_baudrate(unsigned int baud, float clock)
 {
@@ -13,148 +11,135 @@ void configure_baudrate(unsigned int baud, float clock)
     unsigned char dlm_val;
     float clk_hz;
 
-    /* convert MHz to Hz */
     clk_hz = clock * 1000000;
 
-    /* calculate divisor */
     divisor = (unsigned int)(clk_hz / (baud * 16));
 
     dll_val = divisor & 0xFF;
     dlm_val = (divisor >> 8) & 0xFF;
 
-    /* enable DLAB */
-    U0LCR |= (1 << 7);
+    /* Enable divisor latch access */
+    LCR_DLAB_WR(1);
 
-    /* write divisor registers */
     U0DLL = dll_val;
     U0DLM = dlm_val;
 
-    /* disable DLAB */
-    U0LCR &= ~(1 << 7);
+    /* Disable divisor latch access */
+    LCR_DLAB_WR(0);
 }
 
+
 /**
- * @brief Configures UART data width
+ * Configure UART data width
  */
 void configure_data_width(unsigned int data_bits)
 {
-    unsigned char val = 0;
-
-    /* clear bits 0 and 1 */
-    U0LCR &= ~(0x03);
-
     switch(data_bits)
     {
-        case 5:
-            val = 0x00;
-            break;
-
-        case 6:
-            val = 0x01;
-            break;
-
-        case 7:
-            val = 0x02;
-            break;
-
-        case 8:
-            val = 0x03;
-            break;
-
-        default:
-            val = 0x03;
-            break;
+        case 5:LCR_DATA_LEN_WR(0); break;
+        case 6:LCR_DATA_LEN_WR(1); break;
+        case 7:LCR_DATA_LEN_WR(2); break;
+        case 8:LCR_DATA_LEN_WR(3); break;
+        default: LCR_DATA_LEN_WR(3); break;
     }
-
-    U0LCR |= val;
 }
 
+
 /**
- * @brief Configures stop bits
+ * Configure stop bits
  */
 void configure_stop_bit(float stop_bits)
 {
     if(stop_bits == 2)
     {
-        U0LCR |= (1 << 2);
+        LCR_STOP_BIT_WR(1);
     }
     else
     {
-        /* default = 1 stop bit */
-        U0LCR &= ~(1 << 2);
+        LCR_STOP_BIT_WR(0);
     }
 }
 
+
 /**
- * @brief Configures parity
+ * Configure parity
  */
 void configure_parity(unsigned int parity)
 {
-    /* clear parity bits (3 and 4) */
-    U0LCR &= ~(0x18);
-
     switch(parity)
     {
         case 1: /* odd parity */
-            U0LCR |= (1 << 3);
+            LCR_PARITY_WR(1);
             break;
 
         case 2: /* even parity */
-            U0LCR |= (1 << 3);
-            U0LCR |= (1 << 4);
+            LCR_PARITY_WR(3);
             break;
 
         case 0: /* no parity */
         default:
+            LCR_PARITY_WR(0);
             break;
     }
 }
 
+
 /**
- * @brief Transmits a single byte of data
+ * Transmit one byte
  */
-int transmit_data(unsigned char data)
+void transmit_data(unsigned char data)
 {
+    unsigned char thre;
     int timeout = 100000;
 
-    /* wait until THR empty (LSR bit 5) */
-    while(!(U0LSR & (1 << 5)))
+    do
     {
+        LSR_THRE_RD(thre);
+
         timeout--;
 
         if(timeout == 0)
         {
-            return 1;
+            return ;
         }
-    }
 
-    /* write data to THR */
+    } while(thre == 0);
+
     U0THR = data;
 
-    return 0;
+    return ;
 }
 
+
 /**
- * @brief Receives a single byte of data
+ * Receive one byte
  */
 int receive_data(unsigned char *data)
 {
+    unsigned char rdr,bi,fe,pe,oe;
     int timeout = 100000;
 
-    /* wait until data ready (LSR bit 0) */
-    while(!(U0LSR & (1 << 0)))
+    do
     {
+        LSR_RDR_RD(rdr);
+
         timeout--;
 
-        if(timeout == 0)
+        if(timeout <= 0)
         {
-            return 1;
+            return -1;
         }
-    }
 
-    /* read received byte */
+    } while(rdr == 0);
+
     *data = U0RBR;
+		LSR_BI_RD(bi);
+    LSR_FE_RD(fe);
+    LSR_PE_RD(pe);
+    LSR_OE_RD(oe);
+    if(bi || fe || pe || oe) 
+        return 1;
+    else
+        return 0;
 
-    return 0;
 }
-

@@ -1,81 +1,30 @@
 #include <stdio.h>
 #include "seeba_uart.h"
-
+#define PINSEL0 (*((volatile unsigned int *)0xE002C000))
 int main()
 {
-    unsigned char tx_data;
+    unsigned char tx_data = 'B';
     unsigned char rx_data;
-    int mode;
-    int timeout;
-
+	  PINSEL0 |= 0x05;
+   
     // UART Configuration
     configure_baudrate(9600, 1.843);
     configure_data_width(7);
     configure_stop_bit(1);
     configure_parity(2);
+		transmit_data(tx_data);
 
-    printf("Select UART Mode\n");
-    printf("1 -> Transmitter\n");
-    printf("2 -> Receiver\n");
-    scanf("%d", &mode);
-
-    switch(mode)
-    {
-        case 1:   // Transmitter
-        {
-            printf("Enter character to transmit: "); 
-            scanf(" %c", &tx_data); 
-            timeout = 10;
-
-            while(timeout > 0)
-            {
-                if(transmit_data(tx_data) == 0)   // success
-                {
-                    printf("Data transmitted: %c\n", tx_data);
-                    break;
-                }
-
-                timeout--;
-            }
-
-            if(timeout == 0)
-            {
-                printf("Transmission timeout error\n");
-                return 1;
-            }
-
+	
+	 while(1){
+        int status=receive_data(&rx_data); // 1 = error & 0 = success.
+        if(status==1){
+            // Error in data
             break;
+        }else if(status==0){
+            // Data received succefully
+            transmit_data(rx_data);
         }
-
-        case 2:   // Receiver
-        {
-            timeout = 10;
-
-            while(timeout > 0)
-            {
-                if(receive_data(&rx_data) == 0)   // data received
-                {
-                    printf("Received data: %c\n", rx_data);
-                    break;
-                }
-
-                timeout--;
-            }
-
-            if(timeout == 0)
-            {
-                printf("Receive timeout error\n");
-                return 1;
-            }
-
-            break;
-        }
-
-        default:
-            printf("Invalid Mode\n");
-            return 1;
     }
 
     return 0;
 }
-

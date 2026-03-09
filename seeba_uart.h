@@ -55,11 +55,10 @@ void configure_parity(unsigned int parity);
  * @param data : the byte to be transmitted
  * valid values: 0x00 to 0xFF
  *
- * @return : 0 for success
- *	    1 for failure
+ * @return none
  */
  
-int transmit_data(unsigned char data);
+void transmit_data(unsigned char data);
 
 /**
 * @brief receive data of the UART
