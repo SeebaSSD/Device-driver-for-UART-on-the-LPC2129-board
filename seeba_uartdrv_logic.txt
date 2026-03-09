@@ -1,0 +1,117 @@
+/**
+ * @brief Configures the baud rate of the UART
+ *
+ * @param baud : the baud rate of the UART data to be transmitted
+ * valid values: 50 ...128000
+ * @param clock: the input clock frequency in MHz is from the crystal clock. 
+ * valid values: 1.8432MHz, 3.072MHz, 18.432MHz
+ *
+ * @return none
+*/
+void configure_baudrate (unsigned int baud, float clock)
+{
+/*
+  1) Take baud rate to be generated and clock frequency as input parameters
+  2) Calculate the 16 bit divisor value using the formula
+  3) divisor = clock_frequency / (baud  * 16). 
+  4) Set DLAB bit of LCR register to 1 to access DLL and DLM
+  5) Write the most significant 8 bits of the 16-bit divisor into DLM
+  6) Write the least significant 8 bits of the 16-bit divisor into DLL
+  7) Reset DLAB bit of LCR register to 0 so the registers THR and RBR are accessed by default.
+*/
+
+}
+
+/**
+ * @brief Configures the data transmission of the UART
+ *
+ * @param data_len : the word length of the uart data to be sent
+ *  valid values   : 5, 6, 7, 8
+ * @return none
+ */
+void configure_data_width (unsigned char data_len)
+{
+ /*
+  1) Take data word length as input parameter (5,6,7,8)
+  2) Clear the lower 2 bits of LCR register (these bits control word length)
+  3) Set the lower 2 bits according to the required word length:
+       00 -> 5 bits
+       01 -> 6 bits
+       10 -> 7 bits
+       11 -> 8 bits
+  4) Done, data width is configured
+*/
+}
+
+/**
+ * @brief Configures the data transmission of the UART
+ *
+ * @param stop_bit : Number of stop bit of the data.
+ *  vaid values    : 1, 2
+ * @return none
+ */
+void configure_stop_bit (unsigned char stp_bit)
+{
+/*
+  1) Take number of stop bits as input parameter (1 or 2)
+  2) Stop bit is controlled by bit 2 of LCR
+  3) If 1 stop bit: clear bit 2 of LCR
+  4) If 2 stop bits: set bit 2 of LCR
+  5) Done, stop bit is configured
+*/
+}
+
+/**
+ * @brief Configures the data transmission of the UART
+ *
+ * @param parity   : the parity setting
+ *  vaid values    : 0 = even parity, 1 = odd parity, 2 = no parity
+ * @return none
+ */
+void configure_parity (unsigned char par)
+{
+ /*
+  1) Take parity type as input parameter (0=even, 1=odd)
+  2) Clear parity bits (bits 3-4) of LCR register
+  3) If even parity: set (bits 3=1, 4=1)
+  4) If odd parity: set (bits 3=1, 4=0)
+  5) If no parity: (already cleared)
+  6) Done, parity is configured
+*/
+}
+
+/**
+ * @brief transmit data of the UART
+ * @param data : one byte of data to be transmitted 
+ * @return: 0 means data successfully transmitted
+ *          1 means failed to transmit data
+ */
+int transmit_data (unsigned char data)
+{
+/*
+  1) Take one byte of data as input parameter
+  2) Wait until Transmit Holding Register Empty (THRE) is empty (check LSR bit 5), THRE=0 then THR has a char, THRE=1 then UART ready for new data
+  3) If THR empty: write the data to THR register
+  4) If timeout occurs: return failure (1)
+  5) Else: return success (0)
+  6) Done, data transmitted
+*/
+}
+
+/**
+ * @brief receive data of the UART
+ * @param buf : address where one byte of received data can be stored 
+ * @return: 0 means data successfully transmitted
+ *          1 means failed to transmit data
+ */
+int receive_data (unsigned char *buf)
+{
+/*
+  1) Take pointer to buffer where received data will be stored
+  2) Wait until data is ready in Receiver Buffer Register (check LSR bit 0)
+  3) If data ready: read the data from RBR into buffer
+  4) If timeout occurs: return failure (1)
+  5) Else: return success (0)
+  6) Done, data received
+*/
+}
